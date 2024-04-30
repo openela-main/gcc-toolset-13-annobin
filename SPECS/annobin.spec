@@ -8,9 +8,9 @@ BuildRequires: scl-utils-build
 
 Name:    %{?scl_prefix}annobin
 Summary: Annotate and examine compiled binary files
-Version: 12.20
-Release: 1%{?dist}
-License: GPLv3+
+Version: 12.32
+Release: 2%{?dist}
+License: GPL-3.0-or-later AND LGPL-2.0-or-later AND (GPL-2.0-or-later WITH GCC-exception-2.0) AND (LGPL-2.0-or-later WITH GCC-exception-2.0) AND GFDL-1.3-or-later
 URL: https://sourceware.org/annobin/
 # Maintainer: nickc@redhat.com
 # Web Page: https://sourceware.org/annobin/
@@ -529,9 +529,16 @@ make check GCC=%gcc_for_annobin
 %if %{with gccplugin}
 %files plugin-gcc
 %dir %{ANNOBIN_GCC_PLUGIN_DIR}
+
 %{ANNOBIN_GCC_PLUGIN_DIR}/annobin.so
+%verify(owner) %{ANNOBIN_GCC_PLUGIN_DIR}/annobin.so
+
 %{ANNOBIN_GCC_PLUGIN_DIR}/annobin.so.0
+%verify(owner) %{ANNOBIN_GCC_PLUGIN_DIR}/annobin.so.0
+
 %{ANNOBIN_GCC_PLUGIN_DIR}/annobin.so.0.0.0
+%verify(owner) %{ANNOBIN_GCC_PLUGIN_DIR}/annobin.so.0.0.0
+
 %{ANNOBIN_GCC_PLUGIN_DIR}/%{aver}
 %{annobin_source_dir}/latest-annobin.tar.xz
 %endif
@@ -550,6 +557,25 @@ make check GCC=%gcc_for_annobin
 #---------------------------------------------------------------------------------
 
 %changelog
+* Tue Nov 28 2023 Nick Clifton  <nickc@redhat.com> - 12.32-2
+- GCC Plugin: Add %%verify tokens to show that the default plugin names are symbolic links. (RHEL-17505)
+
+* Mon Nov 27 2023 Nick Clifton  <nickc@redhat.com> - 12.32-1
+- LLVM Plugin: Fix building with LLVM version 17.  (RHEL-17311)
+- GCC Plugin: Add support for -fhardended.
+- Update glibc detection heuristics for PPC64.  (RHEL-16453)
+- Fix another atexit test failure.  (#2247481)
+- Fix atexit test failure.
+- Notes: Add support for string format notes.
+- GCC Plugin: Record settings of -Wstrict-flex-arrays and -fstrict-flex-arrays
+- Annobin: Add future test of these options.
+- GCC Plugin: Record settings of -Wimplicit-int and -Wimplicit-function-declaration.
+- Annobin: Add test for these warnings.
+- GCC Plugin: Enable string note format by default.
+- Annocheck: Change GO FIPS test to look for CGO_ENABLED markers.
+- Annocheck: Add test for FIPS compliant GO binaries.
+- Annocheck: Fix double free.  (#2226749)
+
 * Mon Jul 17 2023 Nick Clifton  <nickc@redhat.com> - 12.20-1
 - Annocheck: Ignore AArch64 $x and $d symbols.  (#2221192)
 - GCC Plugin: Suppress active checks for fortran sources.  Improve scanning of COLLECT_GCC_OPTIONS.
