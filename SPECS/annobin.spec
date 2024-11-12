@@ -8,8 +8,8 @@ BuildRequires: scl-utils-build
 
 Name:    %{?scl_prefix}annobin
 Summary: Annotate and examine compiled binary files
-Version: 12.32
-Release: 2%{?dist}
+Version: 12.69
+Release: 1%{?dist}
 License: GPL-3.0-or-later AND LGPL-2.0-or-later AND (GPL-2.0-or-later WITH GCC-exception-2.0) AND (LGPL-2.0-or-later WITH GCC-exception-2.0) AND GFDL-1.3-or-later
 URL: https://sourceware.org/annobin/
 # Maintainer: nickc@redhat.com
@@ -57,7 +57,7 @@ URL: https://sourceware.org/annobin/
 #
 # The default is to use plugin during rebuilds (cf BZ 1630550) but this can
 # be changed because of the need to be able to rebuild annobin when a change
-# to gcc breaks the version installed into the buildroot.  Mote however that
+# to gcc breaks the version installed into the buildroot.  Note however that
 # uncommenting the lines below will result in annocheck not passing the rpminspect
 # tests....
 %if %{without plugin_rebuild}
@@ -70,21 +70,22 @@ URL: https://sourceware.org/annobin/
 Source: https://nickc.fedorapeople.org/%{annobin_sources}
 # For the latest sources use:  git clone git://sourceware.org/git/annobin.git
 
-# Insert patches here, if needed.  Eg:
-# Patch01: annobin-foo.patch
+# Insert patches here, if needed.
 Patch01: annobin-tmp-default-to-using-group-attach.patch
 Patch02: annobin-tmp-skip-libannocheck-test.patch
 
 # This is where a copy of the sources will be installed.
 %global annobin_source_dir %{?_scl_root}/%{_usrsrc}/annobin
 
-%{?scl:Requires:%scl_runtime}
+BuildRequires: %{?scl_prefix}gcc
+BuildRequires: %{?scl_prefix}gcc-c++
+BuildRequires: %{?scl_prefix}annobin-plugin-gcc
 %{?scl:BuildRequires:%scl_runtime}
-# We need the gcc-toolset-13 version of gcc to build annobin, as otherwise the versions will not match.
+
+%{?scl:Requires:%scl_runtime}
+# We need the gcc-toolset-N version of gcc in order to run annobin, as otherwise the versions will not match.
 %{?scl:Requires:%scl_require_package %{scl} gcc}
 
-BuildRequires: %{?scl_prefix}gcc
-BuildRequires: %{?scl_prefix}annobin-plugin-gcc
 %define gcc_for_annobin %{?_scl_root}/usr/bin/gcc
 %define gxx_for_annobin %{?_scl_root}/usr/bin/g++
 
@@ -332,7 +333,7 @@ fi
 echo "Requires: (%{?scl_prefix}gcc >= %{gcc_major} and %{?scl_prefix}gcc < %{gcc_next})"
 
 # NB/ Do not add {?scl_prefix} to the -n option below.  The annobin sources
-# unpack into a directory called annobin-VERSION not gcc-toolset-13-annobin-VERSION.
+# unpack into a directory called annobin-VERSION not gcc-toolset-N-annobin-VERSION.
 %autosetup -p1 -n annobin-%{version}
 
 # The plugin has to be configured with the same arcane configure
@@ -361,8 +362,8 @@ CONFIG_ARGS="$CONFIG_ARGS --with-debuginfod"
 CONFIG_ARGS="$CONFIG_ARGS --without-debuginfod"
 %endif
 
-%if %{with clangplugin}
-CONFIG_ARGS="$CONFIG_ARGS --with-clang"
+%if %{without clangplugin}
+CONFIG_ARGS="$CONFIG_ARGS --without-clang-plugin"
 %endif
 
 %if %{without gccplugin}
@@ -371,8 +372,8 @@ CONFIG_ARGS="$CONFIG_ARGS --without-gcc-plugin"
 CONFIG_ARGS="$CONFIG_ARGS --with-gcc-plugin-dir=%{ANNOBIN_GCC_PLUGIN_DIR}"
 %endif
 
-%if %{with llvmplugin}
-CONFIG_ARGS="$CONFIG_ARGS --with-llvm"
+%if %{without llvmplugin}
+CONFIG_ARGS="$CONFIG_ARGS --without-llvm-plugin"
 %endif
 
 %if %{without tests}
@@ -393,9 +394,8 @@ export CFLAGS="$CFLAGS -DAARCH64_BRANCH_PROTECTION_SUPPORTED=1"
 export CFLAGS="$CFLAGS $RPM_OPT_FLAGS %build_cflags -I%{?_scl_root}/usr/include"
 export LDFLAGS="$LDFLAGS %build_ldflags -L%{?_scl_root}/usr/lib64 -L%{?_scl_root}/usr/lib"
 
-# Set target-specific security options to be used when building the
-# Clang and LLVM plugins.  FIXME: There should be a better way to do
-# this.
+# Set target-specific options to be used when building the Clang and LLVM plugins.
+# FIXME: There should be a better way to do this.
 %ifarch %{ix86} x86_64
 export CLANG_TARGET_OPTIONS="-fcf-protection"
 %endif
@@ -406,9 +406,8 @@ export CLANG_TARGET_OPTIONS="-mbranch-protection=standard"
 %endif
 %endif
 
-%ifarch ppc ppc64 ppc64le
-# FIXME: This is a workaround for a problem with the Clang C++ headers.  It should not be needed.
-export CLANG_TARGET_OPTIONS="-mabi=ibmlongdouble"
+%ifnarch riscv64
+export CLANG_TARGET_OPTIONS="$CLANG_TARGET_OPTIONS -flto -O2"
 %endif
 
 CC=%gcc_for_annobin CXX=%gxx_for_annobin CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS" CXXFLAGS="$CFLAGS" %configure ${CONFIG_ARGS} || cat config.log
@@ -443,12 +442,14 @@ rm %{_tmppath}/tmp_annobin.so
 
 %if %{with clangplugin}
 cp clang-plugin/annobin-for-clang.so %{_tmppath}/tmp_annobin.so
-make -C clang-plugin all CXXFLAGS="$OPTS $BUILD_FLAGS"
+# To enable verbose more in the plugin append the following: ANNOBIN="verbose"
+make -C clang-plugin clean all CLANG_TARGET_OPTIONS="$CLANG_TARGET_OPTIONS $BUILD_FLAGS"
 %endif
 
 %if %{with llvmplugin}
 cp llvm-plugin/annobin-for-llvm.so %{_tmppath}/tmp_annobin.so
-make -C llvm-plugin all CXXFLAGS="$OPTS $BUILD_FLAGS"
+# To enable verbose more in the plugin append the following: ANNOBIN_VERBOSE="true"
+make -C llvm-plugin clean all CLANG_TARGET_OPTIONS="$CLANG_TARGET_OPTIONS $BUILD_FLAGS"
 %endif
 
 # endif for %%if {with_plugin_rebuild}
@@ -468,11 +469,20 @@ mv %{buildroot}/%{llvm_plugin_dir}/annobin-for-clang.so %{buildroot}/%{clang_plu
 %endif
 
 %if %{with gccplugin}
+pushd %{buildroot}/%{ANNOBIN_GCC_PLUGIN_DIR}
+
 # Record the version of gcc that built this plugin.
 # Note - we cannot just store %%{gcc_vr} as sometimes the gcc rpm version changes
 # without the NVR being altered.  See BZ #2030671 for more discussion on this.
-mkdir -p                             %{buildroot}/%{ANNOBIN_GCC_PLUGIN_DIR}
-cat `gcc --print-file-name=rpmver` > %{buildroot}/%{ANNOBIN_GCC_PLUGIN_DIR}/%{aver}
+cat `%gcc_for_annobin --print-file-name=rpmver` > %{aver}
+
+# Also rename the plugin to its GTS variant
+mv annobin.so.0.0.0 gts-annobin.so.0.0.0
+rm -f annobin.so annobin.so.0 gts-annobin.so gts-annobin.so.0
+ln -s gts-annobin.so.0.0.0 gts-annobin.so
+ln -s gts-annobin.so.0.0.0 gts-annobin.so.0
+
+popd
 
 # Also install a copy of the sources into the build tree.
 mkdir -p                            %{buildroot}%{annobin_source_dir}
@@ -480,6 +490,11 @@ cp %{_sourcedir}/%{annobin_sources} %{buildroot}%{annobin_source_dir}/latest-ann
 %endif
 
 rm -f %{buildroot}%{_infodir}/dir
+
+# When annocheck is disabled, annocheck.1.gz will still be generated, remove it.
+%if %{without annocheck}
+rm -f %{_mandir}/man1/annocheck.1.gz
+%endif
 
 #---------------------------------------------------------------------------------
 
@@ -530,16 +545,18 @@ make check GCC=%gcc_for_annobin
 %files plugin-gcc
 %dir %{ANNOBIN_GCC_PLUGIN_DIR}
 
-%{ANNOBIN_GCC_PLUGIN_DIR}/annobin.so
-%verify(owner) %{ANNOBIN_GCC_PLUGIN_DIR}/annobin.so
+%{ANNOBIN_GCC_PLUGIN_DIR}/gts-annobin.so
+%verify(owner) %{ANNOBIN_GCC_PLUGIN_DIR}/gts-annobin.so
 
-%{ANNOBIN_GCC_PLUGIN_DIR}/annobin.so.0
-%verify(owner) %{ANNOBIN_GCC_PLUGIN_DIR}/annobin.so.0
+%{ANNOBIN_GCC_PLUGIN_DIR}/gts-annobin.so.0
+%verify(owner) %{ANNOBIN_GCC_PLUGIN_DIR}/gts-annobin.so.0
 
-%{ANNOBIN_GCC_PLUGIN_DIR}/annobin.so.0.0.0
-%verify(owner) %{ANNOBIN_GCC_PLUGIN_DIR}/annobin.so.0.0.0
+%{ANNOBIN_GCC_PLUGIN_DIR}/gts-annobin.so.0.0.0
+%verify(owner) %{ANNOBIN_GCC_PLUGIN_DIR}/gts-annobin.so.0.0.0
 
 %{ANNOBIN_GCC_PLUGIN_DIR}/%{aver}
+
+%dir %{annobin_source_dir}
 %{annobin_source_dir}/latest-annobin.tar.xz
 %endif
 
@@ -557,6 +574,36 @@ make check GCC=%gcc_for_annobin
 #---------------------------------------------------------------------------------
 
 %changelog
+* Mon Aug 12 2024 Nick Clifton  <nickc@redhat.com> - 12.69-1
+- BuiltBy: Fix seg-fault when comparing language version strings.  (RHEL-53497)
+- Spec File: Use correct names for the symlinks.  (RHEL-53574)
+
+* Fri Aug 09 2024 Nick Clifton  <nickc@redhat.com> - 12.65-3
+- Spec File: Use correct names for the symlinks.  (RHEL-53574)
+
+* Tue Jul 30 2024 Nick Clifton  <nickc@redhat.com> - 12.65-1
+- Rebase to 12.65.  (RHEL-51018)
+- Annocheck: Fix recording arguments for later re-use.  (RHEL-50802)
+- GCC Plugin: Fix building AArch64 components with gcc earlier than 11.3.
+- Annocheck: Add improvements to the builtby utility.
+- Annocheck: Add support for ADA binaries.
+- Annocheck: Add support for binaries built from more than two high level source languages.
+- Annocheck: Add support for object files containing no executable code.
+- Annocheck: Do not FAIL LLVM compiled binaries that have not been built with sanitize-cfi and/or sanitize-safe-stack.
+- Annocheck: Add support for Fortran binaries.
+- Annocheck: Add heuristic for detecting parts of the CGO runtime library.
+- Annocheck: Add improvements for handling Clang runtime binaries.
+- Annocheck: Add tweaks for mixed Rust/C binaries.  (#2284605)
+- Annocheck: Add more glibc source file names.
+- Annocheck: Skip GAPS test for GO binaries.  (RHEL-36308)
+- Annocheck: Remove some false positives for Rust binaries.  (#2280239)
+- Annocheck: Defer passing the branch protection test until all notes have been checked.
+- GCC Plugin: Add extra code for detecting the branch protection setting.  (RHEL-35958)
+
+* Mon Jul 22 2024 Nick Clifton  <nickc@redhat.com> - 12.52-1
+- Rebuild with LLVM 18.  (RHEL-49954)
+- Rebase to 12.52 in order to bring in fixes for LLVM 18.
+
 * Tue Nov 28 2023 Nick Clifton  <nickc@redhat.com> - 12.32-2
 - GCC Plugin: Add %%verify tokens to show that the default plugin names are symbolic links. (RHEL-17505)
 
