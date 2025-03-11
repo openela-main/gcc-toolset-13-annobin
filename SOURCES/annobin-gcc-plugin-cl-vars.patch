@@ -1,0 +1,29 @@
+--- annobin-12.92/gcc-plugin/annobin.cc	2025-02-14 10:40:14.000000000 +0000
++++ annobin.new/gcc-plugin/annobin.cc	2025-02-18 12:38:54.231135138 +0000
+@@ -909,7 +909,7 @@ const char *
+ annobin_get_str_option_by_name (const char * name ATTRIBUTE_UNUSED,
+ 				const char * default_return)
+ {
+-#if GCCPLUGIN_VERSION_MAJOR >= 11
++#if GCCPLUGIN_VERSION_MAJOR >= 14
+   /* GCC version 11 introduced the cl_vars array which provides offsets for
+      fields in global_options which are not handled by cl_options.  */
+   const struct cl_var * var = cl_vars;
+@@ -929,7 +929,7 @@ const int
+ annobin_get_int_option_by_name (const char * name ATTRIBUTE_UNUSED,
+ 				const int    default_return)
+ {
+-#if GCCPLUGIN_VERSION_MAJOR >= 11
++#if GCCPLUGIN_VERSION_MAJOR >= 14
+   /* GCC version 11 introduced the cl_vars array which provides offsets for
+      fields in global_options which are not handled by cl_options.  */
+   const struct cl_var * var = cl_vars;
+@@ -3249,7 +3249,7 @@ multiple_annobin_plugins_present (const
+       return false;
+     }
+ 
+-#if GCCPLUGIN_VERSION_MAJOR > 11
++#if GCCPLUGIN_VERSION_MAJOR > 14
+   /* We used to call plugins_active_p() here but this only lets us know if
+      there are other active plugins.  It does not tell us if they are
+      different versions of the annobin plugin.  So instead we iterate
