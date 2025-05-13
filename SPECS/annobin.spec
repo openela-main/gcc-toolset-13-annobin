@@ -8,7 +8,7 @@ BuildRequires: scl-utils-build
 
 Name:    %{?scl_prefix}annobin
 Summary: Annotate and examine compiled binary files
-Version: 12.69
+Version: 12.92
 Release: 1%{?dist}
 License: GPL-3.0-or-later AND LGPL-2.0-or-later AND (GPL-2.0-or-later WITH GCC-exception-2.0) AND (LGPL-2.0-or-later WITH GCC-exception-2.0) AND GFDL-1.3-or-later
 URL: https://sourceware.org/annobin/
@@ -72,7 +72,7 @@ Source: https://nickc.fedorapeople.org/%{annobin_sources}
 
 # Insert patches here, if needed.
 Patch01: annobin-tmp-default-to-using-group-attach.patch
-Patch02: annobin-tmp-skip-libannocheck-test.patch
+# Patch02: annobin-tmp-skip-libannocheck-test.patch
 
 # This is where a copy of the sources will be installed.
 %global annobin_source_dir %{?_scl_root}/%{_usrsrc}/annobin
@@ -443,13 +443,13 @@ rm %{_tmppath}/tmp_annobin.so
 %if %{with clangplugin}
 cp clang-plugin/annobin-for-clang.so %{_tmppath}/tmp_annobin.so
 # To enable verbose more in the plugin append the following: ANNOBIN="verbose"
-make -C clang-plugin clean all CLANG_TARGET_OPTIONS="$CLANG_TARGET_OPTIONS $BUILD_FLAGS"
+make -C clang-plugin clean all CLANG_TARGET_OPTIONS="$CLANG_TARGET_OPTIONS $BUILD_FLAGS" PLUGIN_INSTALL_DIR=%{buildroot}/%{llvm_plugin_dir}
 %endif
 
 %if %{with llvmplugin}
 cp llvm-plugin/annobin-for-llvm.so %{_tmppath}/tmp_annobin.so
 # To enable verbose more in the plugin append the following: ANNOBIN_VERBOSE="true"
-make -C llvm-plugin clean all CLANG_TARGET_OPTIONS="$CLANG_TARGET_OPTIONS $BUILD_FLAGS"
+make -C llvm-plugin clean all CLANG_TARGET_OPTIONS="$CLANG_TARGET_OPTIONS $BUILD_FLAGS" PLUGIN_INSTALL_DIR=%{buildroot}/%{llvm_plugin_dir}
 %endif
 
 # endif for %%if {with_plugin_rebuild}
@@ -574,6 +574,39 @@ make check GCC=%gcc_for_annobin
 #---------------------------------------------------------------------------------
 
 %changelog
+* Tue Feb 18 2025 Nick Clifton  <nickc@redhat.com> - 12.92-1
+- Rebase to bring in improvements for locating string notes.  (RHEL-79807)
+- Annocheck: Do not rely upon libelf's ability to detect links to separate debuginfo files.  (RHEL-79264)
+- Annocheck: Fix resource leak.  (RHEL-79253)
+- Annocheck: Fix double free. Add special handling for COMBOOT modules.
+- Annocheck: Improve diagnostics when a separate debug info file cannot be found.
+- Annocheck: Look for -fstack-clash-protection in DW_AT_producer string.  (RHEL-77328)
+- Annocheck: Fix locating string notes (again).  Add exception for glibc benchmark tests.  (RHEL-76456)
+- Annocheck: Add crtoffloadtableS.o to list of known gcc binaries.  (RHEL-760404)
+- Annocheck: Fix the --debug-dir option.
+- Annocheck: Fix corrupt warning message when unable to locate separate debug info files.
+- Annocheck: Remove spurious debugging messages.
+- Annocheck: Always look for annobin notes in separate debug info files.  (RHEL-75778)
+- Annocheck: Support multiple --debug-rpm and --debug-file options.  (RHEL-73349)
+- Annocheck: Add support for sys-root'ed glibc packages.  (RHEL-71296)
+- GCC Plugin: Tidy up use of gcc's diagnoatic headers.  (#32429)
+- Testsuite: Use configured compiler when running tests.
+- GCC Plugin: Fix building with gcc 15.  (#32429)
+- Annocheck: Fix overly long debug messages.
+- Annocheck: Rename rwx-seg test to load-segments.  Add more checks.  Add check for gaps as a future fail.
+- Annocheck: Add --no-allow-excpetions to disable exceptions for known special binaries.
+- Annocheck: Add --enable-future to enable future fail components in normal tests.
+- Annocheck: Fix bug preventing the inclusion of the rpm name in reports.
+- Annocheck: Add more exceptions for gcc binaries.  (RHEL-33365)
+- Annocheck: Add --skip-passes option.
+- Annocheck: Add exceptions for gcc binaries.  (RHEL-33365)
+- Annocheck: Skip property note test for i386 binaries created by LLVM.  (#2323797)
+- Annocheck: Skip FORTIFY and GLIBC_ASSERTIONS tests for LLVM produced binaries with unparseable DW_AT_producer attributes in their DWARF debug info.  (RHEL-65411)
+- GCC Plugin: Change type of the .annobin.notes section from SHT_STRTAB to SHT_PROGBITS.
+
+* Tue Aug 13 2024 Nick Clifton  <nickc@redhat.com> - 12.70-1
+- Clang & LLVM Plugins: Include install directory in binary.  (RHEL-54069)
+
 * Mon Aug 12 2024 Nick Clifton  <nickc@redhat.com> - 12.69-1
 - BuiltBy: Fix seg-fault when comparing language version strings.  (RHEL-53497)
 - Spec File: Use correct names for the symlinks.  (RHEL-53574)
